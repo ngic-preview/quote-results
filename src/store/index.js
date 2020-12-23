@@ -1,11 +1,22 @@
-import Vue from "vue";
-import Vuex from "vuex";
+import Vue from 'vue'
+import Vuex from 'vuex'
 
-Vue.use(Vuex);
+Vue.use(Vuex)
 
 export default new Vuex.Store({
-  state: {},
-  mutations: {},
+  state: {
+    config: {},
+    filters: {},
+    showFilter: false,
+  },
+  mutations: {
+    // toggle filter menu when on mobile
+    toggleFilter({ state }) {
+      state.showFilter = !state.showFilter
+    },
+    addFilterItem({ state }, key, item) {},
+    addFilterKey({ state }, key) {},
+  },
   actions: {},
-  modules: {}
-});
+  modules: {},
+})
