@@ -1,16 +1,16 @@
 <template>
   <!-- <v-hover v-slot="{ hover }"> -->
-  <v-card class="box mx-auto mt-6 pt-2">
+  <v-card elevation="3" :class="`box mx-auto ${'mt-6 pt-2'}`">
     <div class="ribbon ribbon-top-left">
-      <span :class="`${quote.plan.rating.toLowerCase()}`">{{
-        quote.plan.rating + ' ' + quote.plan.type
+      <span :class="`${planRatingClass}`">{{
+        planRatingClass === 'primary' ? quote.plan.type : quote.plan.rating + ' ' + quote.plan.type
       }}</span>
     </div>
     <v-list-item class="grow">
       <v-list-item-content>
         <v-list-item-title class="text-h6 font-weight-medium">
           <span class="d-flex align-center">
-            <v-img contain max-height="35" max-width="100" :src="quote.carrier.logoSrcLg"></v-img>
+            <v-img contain max-height="35" max-width="100" :src="quote.carrier.logoSrcLg" class="pr-4"></v-img>
             {{ planName }}
           </span>
         </v-list-item-title>
@@ -20,7 +20,7 @@
 
     <v-divider></v-divider>
 
-    <v-card-text class="pt-0 grey--text text--darken-3">
+    <v-card-text class="py-0 grey--text text--darken-3">
       <v-row class="pt-2" justify="center" align="center">
         <v-col cols="6">
           <v-row justify="center" no-gutters align="start">
@@ -78,12 +78,13 @@
           <v-btn
             class="text-none"
             small
-            outlined
+            text
             @click="showGraph = !showGraph"
             :key="activeFab.icon"
             :color="activeFab.color"
-            ><v-icon left>{{ activeFab.icon }}</v-icon>
+          >
             {{ (showGraph ? 'Hide' : 'Show') + ' graph' }}
+            <v-icon right>{{ activeFab.icon }}</v-icon>
           </v-btn>
         </v-col>
       </v-row>
@@ -91,41 +92,68 @@
 
     <v-expand-transition>
       <div v-if="showGraph" class="transition-fast-in-fast-out">
-        <v-select
-          style="max-width: 350px; width: 50%"
-          class="mx-auto"
-          outlined
-          :menu-props="{ bottom: true, offsetY: true }"
-          dense
-          v-model="graphSelected"
-          :items="graphSelectOptions"
-          return-object
-          item-text="Label"
-          item-value="Code"
-          label="Choose benefit graph to display"
-        >
-        </v-select>
         <v-sheet color="accent">
-          <h6 class="subtitle-1 text-center pt-4">
-            {{ this.graphSelected.Label + ' cost across all plans' }}
-          </h6>
-          <h6 class="subtitle-2 grey--text text--darken-2 text-center">
-            {{ '(lowest, most common, this plan, average, highest)' }}
-          </h6>
+          <v-row justify="center" dense align="center">
+            <v-col cols="auto">
+              <v-select
+                append-icon=""
+                :style="`width: ${graphSelectSize}; height: 38px`"
+                :menu-props="{ bottom: true, offsetY: true }"
+                dense
+                v-model="graphSelected"
+                :items="graphSelectOptions"
+                return-object
+                item-text="Label"
+                item-value="Code"
+              >
+              </v-select>
+            </v-col>
+            <v-col cols="auto">
+              <h6 class="subtitle-1 text-center pa-0">
+                {{ ' cost across all plans' }}
+              </h6>
+            </v-col>
+          </v-row>
           <v-sparkline
             :value="graphData"
             :key="this.graphSelected.Code"
             :gradient="this.$vuetify.theme.themes.light.gradient2"
             gradient-direction="top"
             stroke-linecap="round"
-            line-width="2.5"
-            :smooth="4"
-            padding="24"
+            line-width="2"
+            :smooth="6"
+            padding="18"
             auto-draw
           >
             <template v-slot:label="item">
-              ${{ item.value }}
-              <!-- <tspan text-anchor="middle" dx="-25" dy="-10">{{ getGraphLabel(item.index) }}</tspan> -->
+              <tspan class="text-dollar-sm-graph">${{ item.value }}</tspan>
+              <tspan
+                v-if="item.index !== 1 && item.index !== 2"
+                style="font-size: 5px !important"
+                class="text-subtitle-2 font-weight-regular grey--text text--darken-1"
+                text-anchor="middle"
+                dx="-16"
+                dy="-9"
+                >{{ getGraphLabel(item.index) }}</tspan
+              >
+              <tspan
+                v-if="item.index === 1"
+                style="font-size: 5px !important"
+                class="text-subtitle-2 font-weight-regular grey--text text--darken-1"
+                text-anchor="middle"
+                dx="-25"
+                dy="-9"
+                >{{ getGraphLabel(item.index) }}</tspan
+              >
+              <tspan
+                v-if="item.index === 2"
+                style="font-size: 5px !important"
+                class="text-subtitle-2 font-weight-regular grey--text text--darken-1"
+                text-anchor="middle"
+                dx="-19"
+                dy="-9"
+                >{{ getGraphLabel(item.index) }}</tspan
+              >
             </template>
           </v-sparkline>
         </v-sheet>
@@ -135,9 +163,23 @@
     <v-divider></v-divider>
 
     <v-card-actions class="mx-2">
-      <v-btn class="text-none mx-1" small text color="indigo">Details</v-btn>
-      <v-btn class="text-none mr-1" small text color="indigo">Doctors and providers</v-btn>
-      <v-btn class="text-none" small text color="indigo">Add to compare</v-btn>
+      <v-btn class="text-none mx-1" small text color="indigo"
+        ><v-icon size="14" left>mdi-format-list-bulleted</v-icon>Details</v-btn
+      >
+      <v-btn class="text-none mr-1" small text color="indigo"
+        ><v-icon size="14" left>mdi-stethoscope</v-icon>Doctors and providers</v-btn
+      >
+      <v-btn
+        class="text-none"
+        small
+        text
+        :color="this.isCompared ? 'red' : 'indigo'"
+        @click="handleCompare()"
+        ><v-icon size="14" left>{{
+          this.isCompared ? 'mdi-close' : 'mdi-compare-horizontal'
+        }}</v-icon
+        >{{ this.isCompared ? 'Remove from ' : 'Add to ' }}compare
+      </v-btn>
       <v-spacer></v-spacer>
       <v-btn class="mx-auto px-5 text-none" color="secondary">Choose plan</v-btn>
     </v-card-actions>
@@ -146,6 +188,7 @@
 </template>
 
 <script>
+import { mapActions, mapGetters } from 'vuex'
 import TooltipIcon from '@/components/TooltipIcon.vue'
 
 export default {
@@ -164,69 +207,83 @@ export default {
     },
   },
   beforeMount() {
-    this.getGraphData()
+    this.getGraphSelectOptions()
+    this.graphSelected = this.graphSelectOptions[0]
   },
+  mounted() {},
   data() {
     let combinedBenefits = this.standardBenefits.concat(this.benefitsOptions)
-    console.log(this.standardBenefits)
+
     return {
       showGraph: false,
       graphLabels: [],
+      isCompared: false,
       combinedBenefits,
-      graphSelected: combinedBenefits[0],
+      graphSelected: {},
+      graphSelectOptions: [],
       selectedGraphData: [],
     }
   },
-  watch: {},
+
   components: {
     TooltipIcon,
   },
   methods: {
-    getGraphData() {
-      this.selectedGraphData = []
-      let selectedBenefitValue = 0
-      if (this.graphSelected.Code === 'Rate') {
-        selectedBenefitValue = this.quote.plan.rate
-        this.graphSelected = this.combinedBenefits.find((benefit) => benefit.Code === 'Rate')
+    handleCompare() {
+      if (!this.compare.some((el) => el.plan.id === this.quote.plan.id)) {
+        this.isCompared = true
+        this.$store.dispatch('addToCompare', this.quote)
       } else {
-        selectedBenefitValue = this.quote.plan.benefits.find(
-          (benefit) => benefit.code === this.graphSelected.Code
-        ).intValue
+        this.isCompared = false
+        this.$store.dispatch('removeFromCompare', this.quote)
       }
-      this.selectedGraphData = [
-        this.graphSelected.minPrice,
-        this.graphSelected.medianPrice,
-        selectedBenefitValue,
-        this.graphSelected.averagePrice,
-        this.graphSelected.maxPrice,
-      ]
+    },
+    getGraphSelectOptions() {
+      this.combinedBenefits.forEach((benefit) => {
+        this.graphSelectOptions.push({ ...benefit })
+      })
     },
   },
   computed: {
+    planRatingClass() {
+      let str = 'primary'
+      if (this.quote.plan.rating !== undefined) {
+        str = String(this.quote.plan.rating).toLowerCase()
+      }
+      return str
+    },
+    graphSelectSize() {
+      let size = `100px`
+      const sizeEl = document.querySelector('.resize-font')
+      sizeEl.textContent = this.graphSelected.Label
+      size = `${Math.ceil(sizeEl.clientWidth * 1.1)}px`
+
+      return size
+    },
     getGraphLabel() {
       return function (index) {
         switch (index) {
           case 0:
-            return '(Lowest)'
+            return 'Lowest'
           case 1:
-            return '(Most common)'
+            return 'Most common'
           case 2:
-            return '(This plan)'
+            return 'This plan'
           case 3:
-            return '(Average)'
+            return 'Average'
           case 4:
-            return '(Highest)'
+            return 'Highest'
           default:
             return ''
         }
       }
     },
     graphData() {
-      let selectedBenefitValue = 0
+      let selectedBenefitPrice = 0
       if (this.graphSelected.Code === 'Rate') {
-        selectedBenefitValue = this.quote.plan.rate
+        selectedBenefitPrice = this.quote.plan.rate
       } else {
-        selectedBenefitValue = this.quote.plan.benefits.find(
+        selectedBenefitPrice = this.quote.plan.benefits.find(
           (benefit) => benefit.code === this.graphSelected.Code
         ).intValue
       }
@@ -234,37 +291,25 @@ export default {
       return [
         this.graphSelected.minPrice,
         this.graphSelected.medianPrice,
-        selectedBenefitValue,
+        selectedBenefitPrice,
         this.graphSelected.averagePrice,
         this.graphSelected.maxPrice,
       ]
     },
-    graphSelectOptions() {
-      let options = []
-      this.combinedBenefits.forEach((benefit) => {
-        options.push({ code: benefit.Code, label: benefit.label })
-      })
-
-      return this.combinedBenefits
-    },
     hasDeductible() {
-      return this.quote.plan.benefits.some((el) => el.code === 'ACA1MedicalDrugDeductible')
+      return this.quote.plan.deductible && this.quote.plan.deductible >= 0
     },
     planName() {
       let carrierName = this.quote.carrier.name.replaceAll(' ', '')
       return this.quote.plan.name.replace(carrierName, '')
     },
     deductible() {
-      return this.hasDeductible
-        ? this.quote.plan.benefits
-            .find((benefit) => benefit.code === 'ACA1MedicalDrugDeductible')
-            .value.replaceAll('$', '')
-        : 'N/A'
+      return this.hasDeductible ? this.quote.plan.deductible : 'N/A'
     },
     activeFab() {
       return this.showGraph
-        ? { color: 'error', icon: 'mdi-close' }
-        : { color: 'primary', icon: 'mdi-graph' }
+        ? { color: 'error', icon: 'mdi-chevron-up' }
+        : { color: 'primary', icon: 'mdi-chevron-down' }
     },
 
     /* detailsUrl() {
@@ -273,11 +318,16 @@ export default {
         `?familyID=${familyId}&carrierID=${carrierId}&planID=${planId}&premium=${premium}&license_no=0G67800&brokerID=${brokerId}&insuranceTypeID=6&currPremium=&periodID=211&paymentOption=M&baseRateUnitId=0&numberOfDays=0`
       )
     }, */
+    ...mapActions(['addToCompare', 'removeFromCompare']),
+    ...mapGetters(['compare']),
   },
 }
 </script>
 
 <style lang="scss">
+.v-select__selection--comma {
+  text-overflow: unset !important;
+}
 .v-card--reveal {
   align-items: center;
   bottom: 0;
@@ -306,6 +356,13 @@ export default {
   font-size: 1rem !important;
   font-weight: 400;
   line-height: 1.5rem;
+  letter-spacing: normal !important;
+}
+.text-dollar-sm-graph {
+  font-family: 'Lato' !important;
+  font-size: 6px !important;
+  font-weight: 400;
+  //line-height: 1.5rem;
   letter-spacing: normal !important;
 }
 
@@ -348,9 +405,10 @@ export default {
   padding: 12px 0;
   box-shadow: 0 5px 10px rgba(0, 0, 0, 0.1);
   color: #fff;
-  font-size: 0.8rem;
+  font-size: 0.75rem;
   font-weight: 500;
-  letter-spacing: 0.16666666667em !important;
+  font-family: 'Raleway', sans-serif;
+  letter-spacing: 0.15555557em !important;
   text-shadow: 0 1px 1px rgba(0, 0, 0, 0.2);
   text-transform: uppercase;
   text-align: center;
@@ -378,5 +436,9 @@ export default {
   left: -20px;
   top: 24px;
   transform: rotate(45deg);
+}
+
+.text-subtitle-1 {
+  font-family: 'Raleway', sans-serif !important;
 }
 </style>

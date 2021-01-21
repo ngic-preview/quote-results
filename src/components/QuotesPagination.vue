@@ -1,95 +1,17 @@
 <template>
   <div>
     <v-data-iterator
-      :items="quotes"
+      :items="quotesFiltered"
       :items-per-page.sync="itemsPerPage"
-      :sort-by="sortBy.toLowerCase()"
+      :sort-by="sortBy"
       :sort-desc="sortDesc"
-      :search="search"
       :page="page"
+      :search="search"
+      hide-default-header
       hide-default-footer
     >
-      <template v-slot:header>
-        <v-toolbar dark color="primary" flat>
-          <!-- <v-select
-              multiple
-              v-model="filterBy"
-              clearable
-              flat
-              solo-inverted
-              hide-details
-              prepend-inner-icon="mdi-filter-menu"
-              label="Filter results"
-            ></v-select> -->
-          <v-btn
-            class="text-none"
-            :input-value="showFilter"
-            large
-            text
-            color="white"
-            @click.stop="showFilter = !showFilter"
-            >Filter results
-          </v-btn>
-          <template v-if="$vuetify.breakpoint.mdAndUp">
-            <v-spacer></v-spacer>
-            <v-select
-              v-model="sortBy"
-              flat
-              style="max-width: 200px"
-              solo-inverted
-              hide-details
-              :items="keys"
-              prepend-inner-icon="mdi-sort"
-              label="Sort by"
-            ></v-select>
-
-            <!-- <v-select
-              v-model="filterBy"
-              flat
-              solo-inverted
-              hide-details
-              :items="filters"
-              prepend-inner-icon="mdi-filter-variant"
-            ></v-select> -->
-            <v-btn-toggle color="white" active-class="accent--text" group v-model="sortDesc">
-              <v-btn large :value="false">
-                <v-icon>mdi-sort-ascending</v-icon>
-              </v-btn>
-              <v-btn large :value="true">
-                <v-icon>mdi-sort-descending</v-icon>
-              </v-btn>
-            </v-btn-toggle>
-          </template>
-        </v-toolbar>
-      </template>
-
       <template v-slot:default="props">
-        <v-navigation-drawer v-model="showFilter" floating permanent app width="300" clipped>
-          <v-row justify="center" class="filter-menu">
-            <v-col cols="12" v-for="key in Object.keys(filters)" :key="key">
-              <h6 class="text-center subtitle-2">{{ filterHeading(key) }}</h6>
-              <v-checkbox
-                dense
-                class="mt-1"
-                hide-details
-                v-for="filter in filters[key]"
-                :key="filter.value"
-                v-model="filterBy[key]"
-                :value="filter.value"
-                :label="filter.text"
-              ></v-checkbox>
-            </v-col>
-            <v-col cols="auto">
-              <h6 class="body-1">Deductible Range</h6>
-              <v-range-slider
-                :max="deductible.maxPrice"
-                hide-details
-                v-model="filterBy.deductibleRange"
-              >
-              </v-range-slider>
-            </v-col>
-          </v-row>
-        </v-navigation-drawer>
+        <div class="resize-font"></div>
         <v-row>
           <v-col v-for="item in props.items" :key="item.plan.id" cols="12">
             <QuoteCard
@@ -100,13 +22,72 @@
           </v-col>
         </v-row>
       </template>
+      <template v-slot:footer>
+        <v-row
+          style="max-width: 800px; width: 90%"
+          class="mx-auto mt-2"
+          align="center"
+          justify="center"
+        >
+          <span class="grey--text body-2">Items per page:</span>
+          <v-menu offset-y>
+            <template v-slot:activator="{ on, attrs }">
+              <v-btn dark text color="primary" class="ml-2" v-bind="attrs" v-on="on">
+                {{ itemsPerPage }}
+                <v-icon>mdi-chevron-down</v-icon>
+              </v-btn>
+            </template>
+            <v-list>
+              <v-list-item
+                v-for="(n, index) in itemPerPageArr"
+                :key="index"
+                @click="updateItemsPerPage(n)"
+              >
+                <v-list-item-title> {{ n }}</v-list-item-title>
+              </v-list-item>
+            </v-list>
+          </v-menu>
+
+          <v-spacer></v-spacer>
+
+          <div class="mr-4">
+            <v-btn
+              fab
+              small
+              color="white"
+              class="mr-1 btn-fix"
+              elevation="2"
+              :retain-focus-on-click="false"
+              @click="previousPage()"
+            >
+              <v-icon> mdi-chevron-left</v-icon>
+            </v-btn>
+            <v-btn
+              fab
+              small
+              elevation="2"
+              color="white"
+              class="ml-1 btn-fix"
+              :retain-focus-on-click="false"
+              @click="nextPage()"
+            >
+              <v-icon> mdi-chevron-right</v-icon>
+            </v-btn>
+          </div>
+
+          <v-spacer></v-spacer>
+
+          <span class="mr-4 grey--text body-2"> Page {{ page }} of {{ numberOfPages }} </span>
+        </v-row>
+      </template>
     </v-data-iterator>
-    <v-pagination v-model="page" :length="numberOfPages"></v-pagination>
   </div>
 </template>
 
 <script>
+import { mapGetters } from 'vuex'
 import QuoteCard from '@/components/QuoteCard.vue'
+
 export default {
   props: {
     quotes: {
@@ -121,6 +102,10 @@ export default {
       type: Object,
       required: true,
     },
+    search: {
+      type: String,
+      default: '',
+    },
   },
   components: {
     QuoteCard,
@@ -128,73 +113,102 @@ export default {
   data() {
     return {
       page: 1,
-      itemsPerPage: 10,
-      search: '',
-      filterBy: {
-        carriers: [],
-        networks: [],
-        planRatings: [],
-        deductibleRange: [],
-      },
-      showFilter: false,
-      sortDesc: null,
-      sortBy: '',
+      itemsPerPage: 5,
+      itemPerPageArr: [1, 5, 10, 20],
     }
   },
-  computed: {
-    numberOfPages() {
-      console.log(this.filters)
-      console.log(this.filterBy)
-      console.log(Object.getOwnPropertyNames(this.filters))
-      return Math.ceil(this.quotes.length / this.itemsPerPage)
+  methods: {
+    nextPage() {
+      if (this.page + 1 <= this.numberOfPages) {
+        this.page += 1
+        this.$vuetify.goTo(0)
+      }
     },
-    keys() {
-      return Object.keys(this.quotes[0].plan)
+    updateItemsPerPage(n) {
+      this.itemsPerPage = n
+    },
+    previousPage() {
+      if (this.page - 1 >= 1) {
+        this.page -= 1
+        this.$vuetify.goTo(0)
+      }
+    },
+    checkAgainstFilters(quote) {
+      let check = true
+      if (this.filters.carriers.length) {
+        check = this.filters.carriers.includes(quote.carrier.name)
+      }
+      if (this.filters.networks.length) {
+        check = this.filters.networks.includes(quote.plan.type)
+      }
+      if (this.config.insuranceType !== 'ShortTerm' && this.filters.planRatings.length) {
+        check = this.filters.planRatings.includes(quote.plan.rating)
+      }
+      return (
+        check &&
+        quote.plan.rate <= this.filters.premiumMax &&
+        quote.plan.deductible <= this.filters.deductibleMax
+      )
+    },
+  },
+  computed: {
+    sortItems() {
+      let items = [
+        { label: 'Rate', value: 'plan.rate' },
+        { label: 'Deductible', value: 'plan.deductible' },
+        { label: 'Plan Name', value: 'plan.name' },
+        { label: 'Carrier', value: 'carrier.name' },
+        { label: 'Level', value: 'plan.rating' },
+        { label: 'Network', value: 'plan.type' },
+      ]
+      return items
+    },
+    quotesFiltered() {
+      let filteredQuotes = this.quotes.filter((quote) => this.checkAgainstFilters(quote))
+
+      return filteredQuotes
     },
     deductible() {
       return this.config.standardBenefits.find((el) => el.Code === 'ACA1MedicalDrugDeductible')
     },
-  },
-  methods: {
-    nextPage() {
-      if (this.page + 1 <= this.numberOfPages) this.page += 1
+    premium() {
+      return this.config.standardBenefits.find((el) => el.Code === 'Rate')
     },
-    previousPage() {
-      if (this.page - 1 >= 1) this.page -= 1
+    numberOfPages() {
+      return Math.ceil(this.quotesFiltered.length / this.itemsPerPage)
     },
-    filterHeading(key) {
-      switch (key) {
-        default:
-          return key.charAt(0).toUpperCase() + key.substr(1)
-        case 'planRatings':
-          return 'Levels'
-      }
-    },
-    /* initFilters() {
-      let max = (min = 0)
-      this.quotes.forEach((quote) => {
-        quote.benefits.forEach((benefit) => {
-          if (benefit.code === 'ACA1MedicalDrugDeductible' && benefit.value) {
-          }
-        })
-      })
-    },
-    formatFilters() {
-      const header = {
-        header: key,
-      }
-      const divider = {
-        divider: true,
-      }
-      for (const key in this.filters) {
-      }
-    }, */
+    ...mapGetters(['compare', 'compareLength', 'sortDesc', 'sortBy']),
   },
 }
 </script>
 
 <style lang="scss">
-@import '~vuetify/src/styles/styles.sass';
+//@import '~vuetify/src/styles/styles.sass';
+
+.btn-fix:focus::before {
+  opacity: 0 !important;
+}
+
+.theme--light.v-btn-toggle:not(.v-btn-toggle--group) .v-btn.v-btn {
+  border: none !important;
+}
+.neumorphed-btn {
+  //border-radius: 5px;
+  background: #f5f5f5 !important;
+  box-shadow: inset 5px 5px 10px #d0d0d0, inset -5px -5px 10px #ffffff !important;
+}
+
+.resize-font {
+  visibility: hidden;
+  position: absolute;
+  height: auto;
+  width: auto;
+  white-space: nowrap;
+  font-size: 16px;
+  letter-spacing: normal;
+  text-align: left;
+  font-family: 'Lato', sans-serif;
+}
 
 .rotate-icon {
   transform: rotate(180deg);

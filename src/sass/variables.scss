@@ -2,3 +2,9 @@
 
 $heading-font-family: 'Raleway', sans-serif !default;
 $body-font-family: 'Lato', sans-serif !default;
+
+$headings: (
+  'subtitle-1': (
+    'font-family': $heading-font-family,
+  ),
+);

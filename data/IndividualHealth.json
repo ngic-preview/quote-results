@@ -55,16 +55,6 @@
       "success": "#4CAF50",
       "warning": "#FFC107"
     },
-    "StandardBenefits": [
-      {
-        "Code": "Rate",
-        "Label": "Premium"
-      },
-      {
-        "Code": "ACA1MedicalDrugDeductible",
-        "Label": "Deductible"
-      }
-    ],
     "OptionalBenefits": [
       {
         "Code": "ACA1EHBDrugOOPMax",
